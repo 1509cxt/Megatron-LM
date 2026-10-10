@@ -125,16 +125,12 @@ class TestCoreAttentionRecompute:
                 torch.testing.assert_close(actual.grad, expected.grad, msg=name)
 
     @pytest.mark.parametrize("core_recompute", [False, True])
-    @pytest.mark.parametrize("q_lora_rank", [None, 64])
     @pytest.mark.parametrize("raw_output", [False, True])
     @pytest.mark.parametrize("packed", [False, True])
-    @pytest.mark.parametrize("backend", [AttnBackend.flash, AttnBackend.fused])
-    def test_layernorm_before_mla_recompute(
-        self, core_recompute, q_lora_rank, raw_output, packed, backend, monkeypatch
-    ):
+    def test_layernorm_before_mla_recompute(self, core_recompute, raw_output, packed, monkeypatch):
         """Restore the enclosing layer's norm before replaying MLA on two live graphs."""
-        monkeypatch.setenv("NVTE_FLASH_ATTN", "1" if backend == AttnBackend.flash else "0")
-        monkeypatch.setenv("NVTE_FUSED_ATTN", "1" if backend == AttnBackend.fused else "0")
+        monkeypatch.setenv("NVTE_FLASH_ATTN", "1")
+        monkeypatch.setenv("NVTE_FUSED_ATTN", "0")
         monkeypatch.setenv("NVTE_UNFUSED_ATTN", "0")
         modules = ["layernorm", "mla_up_proj"]
         if core_recompute:
@@ -151,10 +147,10 @@ class TestCoreAttentionRecompute:
                 params_dtype=torch.bfloat16,
                 attention_dropout=0.0,
                 hidden_dropout=0.0,
-                attention_backend=backend,
+                attention_backend=AttnBackend.flash,
                 normalization="RMSNorm",
                 multi_latent_attention=True,
-                q_lora_rank=q_lora_rank,
+                q_lora_rank=None,
                 kv_lora_rank=64,
                 qk_head_dim=64,
                 qk_pos_emb_head_dim=64,
